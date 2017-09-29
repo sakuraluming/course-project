@@ -1,0 +1,162 @@
+/*程序说明： 
+51单片机红外遥控解码程序
+单片机采用外部中断INTI管脚和红外接收头的信号线相连，
+中断方式为边沿触发方式。并用定时器0计算中断的间隔时间，
+
+*/
+#include <reg52.h>
+#define uchar unsigned char 
+sbit P2_0 = P2^0;
+sbit P2_1 = P2^1;
+sbit P2_2 = P2^2;
+sbit P2_3 = P2^3;
+
+char LED;
+
+//sbit dula=P2^6;
+//sbit wela=P2^7;
+sbit keyS1 = P2^4;
+sbit keyS2 = P2^5;
+sbit keyS3 = P2^6;
+sbit keyS4 = P2^7;
+//LED
+sbit P1_0 = P1^0;
+sbit P1_1 = P1^1;
+sbit P1_2 = P1^2;
+sbit P1_3 = P1^3;
+sbit P1_4 = P1^4;
+sbit P1_5 = P1^5;
+sbit P1_6 = P1^6;
+sbit P1_7 = P1^7;
+
+
+uchar code table[]={0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,
+                        0xf8,0x80,0x90,0x88,0x80,0xc6,0xc0,0x86,0x8e};
+uchar f;
+
+#define Imax 14000    //此处为晶振为11.0592时的取值, 
+#define Imin 8000    //如用其它频率的晶振时,
+#define Inum1 1450    //要改变相应的取值。
+#define Inum2 700 
+#define Inum3 3000 
+
+unsigned char Im[4]={0x00,0x00,0x00,0x00};
+uchar show[4]={0,0,0,0};
+unsigned long m,Tc;
+unsigned char IrOK;
+
+int tem=26;//温度初值
+int mode=0;//模式切换次数初值
+
+void delay(uchar i)
+{
+  uchar j,k; 
+  for(j=i;j>0;j--)
+    for(k=125;k>0;k--);
+}
+
+
+//外部中断解码程序
+void intersvr1(void) interrupt 2 using 1
+{
+ Tc=TH0*256+TL0;                                               //提取中断时间间隔时长
+ TH0=0; 
+    TL0=0;              //定时中断重新置零
+
+
+}
+
+
+/*演示主程序*/
+void main(void)
+{
+    unsigned int  a;
+	unsigned char temp_display=0x36;
+ keyS1 = 1; keyS2 = 1; keyS3 = 1; keyS4 = 1; // 按键端口设置为输入  
+ m=0;
+    f=0;
+ EA=1;
+ 
+ IT1=1;EX1=1;
+ 
+ TMOD=0x11;  
+ TH0=0;TL0=0;
+ TR0=1;//ET0=1;
+
+	P1_0 = 1;
+	P1_1 = 1;
+	P1_2 = 1;
+    P1_3 = 1;
+	P1_4 = 1;
+	P1_5 = 1;
+	P1_6 = 1;
+    P1_7 = 1;
+	
+ while(1)
+ {	   
+	   keyS1 = 1; keyS2 = 1; keyS3 = 1; keyS4 = 1; // 按键端口设置为输入
+
+  if(Tc>1000&&Tc<2000)//
+   {
+      delay(5);//延时去抖动
+	  if(Tc>1000&&Tc<2000)
+      {
+         if(tem<30)
+		 tem++;
+      }
+   }
+   if(Tc>2000&&Tc<3000) //-
+   {
+      delay(5);//延时去抖动
+	  if(Tc>2000&&Tc<3000)
+      {
+          if(tem>16)
+		 tem--;
+      }
+   }
+   if(Tc>3000&&Tc<4000)  //mode
+   {
+      delay(5);//延时去抖动
+	  if(Tc>3000&&Tc<4000)
+      {
+         
+		 mode++;
+
+      }
+   }
+
+ 
+
+        for(a=50;a>0;a--)		  //改变a值会影响相应速度
+       {
+	P0=table[tem/10];//分解显示信息，十位  
+	P2_0=0;
+	delay(5);										//delay数值会影响数码管显示的清晰程度，扫描速度过快，将2改为5之后问题解决，
+	P2_0=1;
+
+	P0=table[tem%10];//个位
+	P2_1=0;
+	delay(5);
+	P2_1=1;
+
+	P0=table[mode%2];
+	P2_3=0;
+	delay(5);
+	P2_3=1;
+
+		   if(mode%2==1)
+		   	{
+			   P1=LED;
+			   LED=0xfe;
+			}
+			else
+			{
+			   P1=LED;
+			   LED=0xfb;
+			}
+  
+   }
+   	 
+ }
+}
+
